@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Teaching Chatbot</title>
+ 
+</head>
+<body>
+    <div class="container">
+        <h1>English Learning Chatbot</h1>
+        <p>Practice your English speaking skills!</p>
+        
+        <!-- Lesson Selection -->
+        <div class="lesson-selector">
+            <label for="lesson">Choose a Lesson: </label>
+            <select id="lesson">
+                <option value="greetings">Greetings</option>
+                <option value="daily">Daily Phrases</option>
+                <option value="questions">Asking Questions</option>
+                <option value="travel">Travel</option>
+                <option value="food">Food</option>
+            </select>
+            <button id="start-lesson">Start Lesson</button>
+        </div>
+
+        <!-- Output and Controls -->
+        <div id="prompt" class="prompt-box"></div>
+        <div id="output" class="output-box"></div>
+        <button id="start-btn">Start Speaking</button>
+        <button id="stop-btn" disabled>Stop Speaking</button>
+        <div id="feedback" class="feedback-box">
+            <span id="feedback-text"></span>
+            <span id="feedback-icon"></span>
+        </div>
+
+        <!-- Progress Tracker -->
+        <div class="progress">
+            <h3>Your Progress</h3>
+            <p>Attempts: <span id="attempts">0</span></p>
+            <p>Successful Sentences: <span id="success">0</span></p>
+        </div>
+    </div>
+    <style>body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+.container {
+    text-align: center;
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    max-width: 600px;
+    width: 100%;
+}
+
+h1 {
+    color: #333;
+    font-size: 28px;
+}
+
+button {
+    padding: 10px 20px;
+    margin: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+button:hover:not(:disabled) {
+    background-color: #45a049;
+}
+
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.lesson-selector {
+    margin: 20px 0;
+}
+
+select {
+    padding: 8px;
+    font-size: 16px;
+    border-radius: 5px;
+}
+
+.prompt-box, .output-box, .feedback-box {
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    min-height: 60px;
+    background-color: #fafafa;
+    font-size: 16px;
+}
+
+.prompt-box {
+    background-color: #e8f5e9;
+    font-style: italic;
+}
+
+.feedback-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #555;
+}
+
+#feedback-icon {
+    font-size: 24px;
+    transition: opacity 0.5s;
+}
+
+.success-icon {
+    color: #4CAF50;
+}
+
+.error-icon {
+    color: #f44336;
+}
+
+.progress {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+}
+
+.progress h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.progress p {
+    margin: 5px 0;
+}</style>
+    <script>// Check browser support for Web Speech API
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const SpeechSynthesis = window.speechSynthesis;
+
+if (!SpeechRecognition) {
+    alert("Sorry, your browser doesn't support Speech Recognition!");
+} else {
+    const recognition = new SpeechRecognition();
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const startLessonBtn = document.getElementById('start-lesson');
+    const lessonSelect = document.getElementById('lesson');
+    const prompt = document.getElementById('prompt');
+    const output = document.getElementById('output');
+    const feedbackText = document.getElementById('feedback-text');
+    const feedbackIcon = document.getElementById('feedback-icon');
+    const attemptsSpan = document.getElementById('attempts');
+    const successSpan = document.getElementById('success');
+
+    // Progress tracking
+    let attempts = 0;
+    let successes = 0;
+
+    // Expanded lesson data
+    const lessons = {
+        greetings: [
+            "Say: Hello, how are you?",
+            "Say: Good morning!",
+            "Say: Nice to meet you."
+        ],
+        daily: [
+            "Say: I want to eat breakfast.",
+            "Say: What time is it?",
+            "Say: I’m going to the store."
+        ],
+        questions: [
+            "Say: Where is the park?",
+            "Say: Can you help me?",
+            "Say: How do I get there?"
+        ],
+        travel: [
+            "Say: Where is the airport?",
+            "Say: I need a ticket to London.",
+            "Say: How much is the fare?"
+        ],
+        food: [
+            "Say: I’d like some water, please.",
+            "Say: Can I see the menu?",
+            "Say: This tastes delicious!"
+        ]
+    };
+    let currentLesson = [];
+    let currentPromptIndex = 0;
+
+    // Configure speech recognition
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    // Start lesson with randomized prompts
+    startLessonBtn.addEventListener('click', () => {
+        const selectedLesson = lessonSelect.value;
+        currentLesson = shuffleArray([...lessons[selectedLesson]]); // Randomize prompts
+        currentPromptIndex = 0;
+        prompt.textContent = currentLesson[currentPromptIndex];
+        output.textContent = "";
+        feedbackText.textContent = "";
+        feedbackIcon.textContent = "";
+    });
+
+    // Start speech recognition
+    startBtn.addEventListener('click', () => {
+        if (currentLesson.length === 0) {
+            feedbackText.textContent = "Please start a lesson first!";
+            return;
+        }
+        recognition.start();
+        output.textContent = "Listening...";
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+    });
+
+    // Stop speech recognition
+    stopBtn.addEventListener('click', () => {
+        recognition.stop();
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    });
+
+    // Handle speech recognition result
+    recognition.onresult = async (event) => {
+        const transcript = event.results[0][0].transcript;
+        output.textContent = `You said: "${transcript}"`;
+        attempts++;
+        attemptsSpan.textContent = attempts;
+
+        // Analyze input with LanguageTool API
+        const feedback = await analyzeInput(transcript, currentLesson[currentPromptIndex]);
+        feedbackText.textContent = feedback.message;
+        feedbackIcon.textContent = feedback.isSuccess ? "✅" : "❌";
+        feedbackIcon.className = feedback.isSuccess ? "success-icon" : "error-icon";
+
+        // Speak feedback
+        speakFeedback(feedback.message);
+
+        // Move to next prompt if successful
+        if (feedback.isSuccess) {
+            successes++;
+            successSpan.textContent = successes;
+            currentPromptIndex++;
+            if (currentPromptIndex < currentLesson.length) {
+                prompt.textContent = currentLesson[currentPromptIndex];
+            } else {
+                prompt.textContent = "Lesson complete! Choose another lesson.";
+                currentLesson = [];
+            }
+        }
+    };
+
+    // Handle end of recognition
+    recognition.onend = () => {
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        if (output.textContent === "Listening...") {
+            output.textContent = "Stopped. Please try again.";
+        }
+    };
+
+    // Handle errors
+    recognition.onerror = (event) => {
+        output.textContent = "Error occurred: " + event.error;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    };
+
+    // Analyze input with LanguageTool API
+    async function analyzeInput(transcript, expected) {
+        const cleanTranscript = transcript.trim();
+        const cleanExpected = expected.replace("Say: ", "").trim();
+
+        if (cleanTranscript === "") {
+            return { message: "You didn't say anything! Try again.", isSuccess: false };
+        }
+
+        // Basic exact match check
+        if (cleanTranscript.toLowerCase() === cleanExpected.toLowerCase()) {
+            return { message: "Great job! You said it perfectly.", isSuccess: true };
+        }
+
+        // LanguageTool API check (replace with your API key)
+        const apiKey = "YOUR_LANGUAGETOOL_API_KEY"; // Sign up at languagetool.org for a key
+        const response = await fetch('https://api.languagetoolplus.com/v2/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `text=${encodeURIComponent(cleanTranscript)}&language=en-US&enabledOnly=false`
+        });
+        const data = await response.json();
+
+        if (data.matches.length === 0) {
+            return { message: "Good effort! No grammar mistakes, but try: " + expected, isSuccess: false };
+        } else {
+            const firstError = data.matches[0];
+            return {
+                message: `Oops! ${firstError.message}. Try: ${expected}`,
+                isSuccess: false
+            };
+        }
+    }
+
+    // Text-to-speech feedback
+    function speakFeedback(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        SpeechSynthesis.speak(utterance);
+    }
+
+    // Shuffle array function for randomizing prompts
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+}</script>
+</body>
+</html>

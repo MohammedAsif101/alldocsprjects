@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BoxArrange</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #game-container {
+            text-align: center;
+        }
+        #gameCanvas {
+            border: 2px solid #333;
+            background-color: #fff;
+        }
+        #score {
+            font-size: 24px;
+            margin-top: 10px;
+        }
+        #buttons {
+            margin-top: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 0 5px;
+            cursor: pointer;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <div id="score">Score: 0</div>
+        <div id="buttons">
+            <button id="restartBtn">Restart</button>
+            <button id="stopBtn">Stop</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gridSize = 20;
+        const tileCountX = canvas.width / gridSize;
+        const tileCountY = canvas.height / gridSize;
+
+        // Game state
+        let score = 0;
+        let gameOver = false;
+        let isPaused = false;
+
+        // Tetris shapes (0 = empty, 1 = filled)
+        const shapes = [
+            [[1, 1, 1, 1]], // I
+            [[1, 1], [1, 1]], // O
+            [[1, 1, 1], [0, 1, 0]], // T
+            [[1, 1, 1], [1, 0, 0]], // L
+            [[1, 1, 1], [0, 0, 1]], // J
+            [[1, 1, 0], [0, 1, 1]], // S
+            [[0, 1, 1], [1, 1, 0]]  // Z
+        ];
+
+        // Current falling box
+        let currentBox = spawnNewBox();
+        let fallSpeed = 500; // Milliseconds per fall step
+        let lastFallTime = 0;
+
+        // Grid to track placed boxes
+        let grid = Array(tileCountY).fill().map(() => Array(tileCountX).fill(0));
+
+        // Colors
+        const boxColor = '#ff3333';
+        const gridColor = '#999';
+
+        // Game loop
+        function gameLoop(timestamp) {
+            if (gameOver) {
+                ctx.fillStyle = 'black';
+                ctx.font = '40px Arial';
+                ctx.fillText('Game Over', canvas.width / 4, canvas.height / 2);
+                return;
+            }
+
+            if (!isPaused) {
+                update(timestamp);
+            }
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update(timestamp) {
+            // Move box down
+            if (timestamp - lastFallTime >= fallSpeed) {
+                currentBox.y++;
+                lastFallTime = timestamp;
+
+                if (boxCollision()) {
+                    currentBox.y--; // Move back up if collision
+                    placeBox();
+                    checkLines();
+                    currentBox = spawnNewBox();
+                    if (boxCollision()) { // Check if new box can't spawn
+                        gameOver = true;
+                    }
+                }
+            }
+
+            document.getElementById('score').textContent = `Score: ${score}`;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid with placed boxes
+            for (let y = 0; y < tileCountY; y++) {
+                for (let x = 0; x < tileCountX; x++) {
+                    if (grid[y][x]) {
+                        ctx.fillStyle = gridColor;
+                        ctx.fillRect(x * gridSize, y * gridSize, gridSize - 1, gridSize - 1);
+                    }
+                }
+            }
+
+            // Draw current falling box
+            for (let i = 0; i < currentBox.shape.length; i++) {
+                for (let j = 0; j < currentBox.shape[i].length; j++) {
+                    if (currentBox.shape[i][j]) {
+                        ctx.fillStyle = boxColor;
+                        ctx.fillRect((currentBox.x + j) * gridSize, (currentBox.y + i) * gridSize, gridSize - 1, gridSize - 1);
+                    }
+                }
+            }
+        }
+
+        function boxCollision() {
+            for (let i = 0; i < currentBox.shape.length; i++) {
+                for (let j = 0; j < currentBox.shape[i].length; j++) {
+                    if (currentBox.shape[i][j]) {
+                        let newX = currentBox.x + j;
+                        let newY = currentBox.y + i;
+                        if (newX < 0 || newX >= tileCountX || newY >= tileCountY || (newY >= 0 && grid[newY][newX])) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function placeBox() {
+            for (let i = 0; i < currentBox.shape.length; i++) {
+                for (let j = 0; j < currentBox.shape[i].length; j++) {
+                    if (currentBox.shape[i][j]) {
+                        grid[currentBox.y + i][currentBox.x + j] = 1;
+                    }
+                }
+            }
+        }
+
+        function checkLines() {
+            for (let y = tileCountY - 1; y >= 0; y--) {
+                if (grid[y].every(cell => cell === 1)) {
+                    grid.splice(y, 1);
+                    grid.unshift(Array(tileCountX).fill(0));
+                    score += 100;
+                }
+            }
+        }
+
+        function spawnNewBox() {
+            const shape = shapes[Math.floor(Math.random() * shapes.length)];
+            return {
+                shape: shape,
+                x: Math.floor(tileCountX / 2) - Math.floor(shape[0].length / 2),
+                y: 0
+            };
+        }
+
+        function rotateBox() {
+            const oldShape = currentBox.shape;
+            const n = oldShape.length;
+            const m = oldShape[0].length;
+            const newShape = Array(m).fill().map(() => Array(n).fill(0));
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < m; j++) {
+                    newShape[m - 1 - j][i] = oldShape[i][j];
+                }
+            }
+            currentBox.shape = newShape;
+            if (boxCollision()) {
+                currentBox.shape = oldShape; // Revert if collision
+            }
+        }
+
+        function resetGame() {
+            score = 0;
+            gameOver = false;
+            isPaused = false;
+            grid = Array(tileCountY).fill().map(() => Array(tileCountX).fill(0));
+            currentBox = spawnNewBox();
+            lastFallTime = 0;
+            document.getElementById('stopBtn').textContent = 'Stop';
+        }
+
+        // Controls
+        document.addEventListener('keydown', event => {
+            if (!isPaused && !gameOver) {
+                switch (event.key) {
+                    case 'ArrowLeft':
+                        currentBox.x--;
+                        if (boxCollision()) currentBox.x++;
+                        break;
+                    case 'ArrowRight':
+                        currentBox.x++;
+                        if (boxCollision()) currentBox.x--;
+                        break;
+                    case 'ArrowDown':
+                        currentBox.y++;
+                        if (boxCollision()) {
+                            currentBox.y--;
+                            placeBox();
+                            checkLines();
+                            currentBox = spawnNewBox();
+                            if (boxCollision()) gameOver = true;
+                        }
+                        break;
+                    case 'ArrowUp':
+                        rotateBox();
+                        break;
+                }
+            }
+        });
+
+        // Button event listeners
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            resetGame();
+        });
+
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            if (!gameOver) {
+                isPaused = !isPaused;
+                document.getElementById('stopBtn').textContent = isPaused ? 'Resume' : 'Stop';
+            }
+        });
+
+        // Start game
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>

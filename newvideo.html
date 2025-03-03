@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Video Chat</title>
+    <style>
+        /* General Styling */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+            margin: 0;
+        }
+
+        /* Navbar */
+        .navbar {
+            background-color: #333;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 18px;
+        }
+
+        .navbar a:hover {
+            text-decoration: underline;
+        }
+
+        /* Video Section */
+        video {
+            width: 80%;
+            max-width: 600px;
+            margin: 10px;
+            border: 2px solid #333;
+        }
+
+        button {
+            margin: 5px;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        /* Chat Section */
+        #chatContainer {
+            margin-top: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 5px gray;
+        }
+
+        #chatLog {
+            text-align: left;
+            padding: 10px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 30px;
+            background-color: #333;
+            color: white;
+            padding: 15px;
+            position: relative;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <div class="navbar">
+        <div><strong>AI Video Chat</strong></div>
+        <div>
+            <a href="#">Home</a>
+            <a href="#">Video Chat</a>
+            <a href="#">Settings</a>
+        </div>
+    </div>
+
+    <h1>AI Video Recorder & Chat</h1>
+
+    <!-- Video Recording Section -->
+    <video id="videoPreview" autoplay></video>
+    <button id="startRecord">Start Recording</button>
+    <button id="pauseRecord">Pause</button>
+    <button id="resumeRecord">Resume</button>
+    <button id="stopRecord">Stop & Save</button>
+    <video id="playback" controls></video>
+    <a id="downloadLink" download="recorded-video.webm">Download Video</a>
+
+    <!-- AI Chat Section -->
+    <div id="chatContainer">
+        <input type="text" id="userInput" placeholder="Type a message...">
+        <button id="sendMessage">Send</button>
+        <button id="speakMessage">🎤 Speak</button>
+        <div id="chatLog"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>&copy; 2025 AI Video Chat. All Rights Reserved.</p>
+    </div>
+
+    <script>
+        // Video Recording
+        const video = document.getElementById("videoPreview");
+        const playback = document.getElementById("playback");
+        const startBtn = document.getElementById("startRecord");
+        const stopBtn = document.getElementById("stopRecord");
+        const pauseBtn = document.getElementById("pauseRecord");
+        const resumeBtn = document.getElementById("resumeRecord");
+        const downloadLink = document.getElementById("downloadLink");
+
+        let mediaRecorder;
+        let recordedChunks = [];
+
+        // Start camera with error handling
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                video.srcObject = stream;
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = event => recordedChunks.push(event.data);
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: "video/webm" });
+                    const url = URL.createObjectURL(blob);
+                    playback.src = url;
+                    downloadLink.href = url;
+                    recordedChunks = []; // Clear recorded data
+                };
+            })
+            .catch(error => console.error("Error accessing camera:", error));
+
+        startBtn.onclick = () => mediaRecorder.start();
+        pauseBtn.onclick = () => mediaRecorder.pause();
+        resumeBtn.onclick = () => mediaRecorder.resume();
+        stopBtn.onclick = () => mediaRecorder.stop();
+
+        // AI Chat Functionality
+        const userInput = document.getElementById("userInput");
+        const sendMessage = document.getElementById("sendMessage");
+        const chatLog = document.getElementById("chatLog");
+
+        sendMessage.onclick = async () => {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            chatLog.innerHTML += `<p>You: ${message}</p>`;
+
+            try {
+                const response = await fetch("/chat", {  // Calls the backend securely
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+                const aiText = data.reply;
+                chatLog.innerHTML += `<p>AI: ${aiText}</p>`;
+
+                // Convert AI text response to speech
+                speakText(aiText);
+            } catch (error) {
+                chatLog.innerHTML += `<p>Error: Unable to reach AI</p>`;
+                console.error("AI Request Error:", error);
+            }
+        };
+
+        // Speech-to-Text (Voice Input)
+        const speakMessage = document.getElementById("speakMessage");
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+
+        speakMessage.onclick = () => {
+            recognition.start();
+        };
+
+        recognition.onresult = event => {
+            userInput.value = event.results[0][0].transcript;
+        };
+
+        recognition.onerror = event => {
+            console.error("Speech recognition error:", event.error);
+        };
+
+        // Text-to-Speech (AI Response)
+        function speakText(text) {
+            const speech = new SpeechSynthesisUtterance(text);
+            speech.lang = "en-US";
+            window.speechSynthesis.speak(speech);
+        }
+    </script>
+
+</body>
+</html>

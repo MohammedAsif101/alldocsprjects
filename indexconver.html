@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML to Mobile App Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Convert HTML to Mobile App</h2>
+        <input type="file" id="zipFile" accept=".zip">
+        <button onclick="uploadFile()">Upload & Convert</button>
+        <p id="status"></p>
+    </div>
+
+    <script>
+        function uploadFile() {
+            const fileInput = document.getElementById('zipFile');
+            const statusText = document.getElementById('status');
+            
+            if (!fileInput.files.length) {
+                statusText.textContent = "Please select a ZIP file to upload.";
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/convert', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                statusText.textContent = data.message || "Conversion successful!";
+                if (data.downloadUrl) {
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = data.downloadUrl;
+                    downloadLink.textContent = "Download App";
+                    downloadLink.style.display = "block";
+                    document.body.appendChild(downloadLink);
+                }
+            })
+            .catch(error => {
+                statusText.textContent = "Error uploading file.";
+            });
+        }
+    </script>
+</body>
+</html>

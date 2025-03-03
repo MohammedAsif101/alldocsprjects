@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Calculator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="calculator">
+        <input type="text" id="display" disabled>
+        <div class="buttons">
+            <button id="clear">C</button>
+            <button id="backspace">&lt;</button>
+            <button id="divide">/</button>
+            <button id="multiply">*</button>
+            <button id="seven">7</button>
+            <button id="eight">8</button>
+            <button id="nine">9</button>
+            <button id="subtract">-</button>
+            <button id="four">4</button>
+            <button id="five">5</button>
+            <button id="six">6</button>
+            <button id="add">+</button>
+            <button id="one">1</button>
+            <button id="two">2</button>
+            <button id="three">3</button>
+            <button id="equals">=</button>
+            <button id="zero">0</button>
+            <button id="decimal">.</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+<style>
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+}
+
+.calculator {
+    width: 300px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+#display {
+    width: 100%;
+    height: 40px;
+    margin-bottom: 20px;
+    padding: 10px;
+    font-size: 24px;
+    text-align: right;
+    border: none;
+    border-radius: 5px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+}
+
+.buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+button {
+    height: 40px;
+    font-size: 18px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .calculator {
+        width: 100%;
+        margin: 20px auto;
+    }
+}
+
+</style>
+
+<script>
+
+let display = document.getElementById('display');
+let clear = document.getElementById('clear');
+let backspace = document.getElementById('backspace');
+let divide = document.getElementById('divide');
+let multiply = document.getElementById('multiply');
+let subtract = document.getElementById('subtract');
+let add = document.getElementById('add');
+let equals = document.getElementById('equals');
+let numbers = document.querySelectorAll('#zero, #one, #two, #three, #four, #five, #six, #seven, #eight, #nine');
+let decimal = document.getElementById('decimal');
+
+let currentNumber = '';
+let previousNumber = '';
+let operation = '';
+
+numbers.forEach(number => {
+    number.addEventListener('click', () => {
+        currentNumber += number.textContent;
+        display.value = currentNumber;
+    });
+});
+
+decimal.addEventListener('click', () => {
+    if (!currentNumber.includes('.')) {
+        currentNumber += '.';
+        display.value = currentNumber;
+    }
+});
+
+clear.addEventListener('click', () => {
+    currentNumber = '';
+    previousNumber = '';
+    operation = '';
+    display.value = '';
+});
+
+backspace.addEventListener('click', () => {
+    currentNumber = currentNumber.slice(0, -1);
+    display.value = currentNumber;
+});
+
+divide.addEventListener('click', () => {
+    previousNumber = currentNumber;
+    operation = 'divide';
+    currentNumber = '';
+    display.value = '/';
+});
+
+multiply.addEventListener('click', () => {
+    previousNumber = currentNumber;
+    operation = 'multiply';
+    currentNumber = '';
+    display.value = '*';
+});
+
+subtract.addEventListener('click', () => {
+    previousNumber = currentNumber;
+    operation = 'subtract';
+    currentNumber = '';
+    display.value = '-';
+});
+
+add.addEventListener('click', () => {
+    previousNumber = currentNumber;
+    operation = 'add';
+    currentNumber = '';
+    display.value = '+';
+});
+
+equals.addEventListener('click', () => {
+    let result;
+    switch (operation) {
+        case 'divide':
+            result = parseFloat(previousNumber) / parseFloat(currentNumber);
+            break;
+        case 'multiply':
+            result = parseFloat(previousNumber) * parseFloat(currentNumber);
+            break;
+        case 'subtract':
+            result = parseFloat(previousNumber) - parseFloat(currentNumber);
+            break;
+        case 'add':
+            result = parseFloat(previousNumber) + parseFloat(currentNumber);
+            break;
+        default:
+            result = currentNumber;
+    }
+    display.value = result;
+    currentNumber = result.toString();
+    previousNumber = '';
+    operation = '';
+});4550
+
+</script>
+</body>
+</html>

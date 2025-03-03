@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Warzone: Apocalypse 3D Enhanced</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #222;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 1;
+        }
+        #weather {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: rgba(194, 138, 61, 0);
+            transition: background 2s;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div>Health: <span id="health">100</span></div>
+        <div>Score: <span id="score">0</span></div>
+        <div>Energy: <span id="energy">100</span></div>
+        <div>Controls: WASD - Move | Shift - Dash | Space - Jump/Gravity Bomb | Mouse - Aim/Shoot</div>
+    </div>
+    <div id="weather"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Physics world
+        const world = new CANNON.World();
+        world.gravity.set(0, -9.82, 0);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(5, 10, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // Player
+        const playerGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const playerMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+        const player = new THREE.Mesh(playerGeometry, playerMaterial);
+        player.castShadow = true;
+        player.receiveShadow = true;
+        scene.add(player);
+        const playerBody = new CANNON.Body({
+            mass: 1,
+            position: new CANNON.Vec3(0, 0.5, 0),
+            shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5))
+        });
+        world.addBody(playerBody);
+
+        // Terrain with height variation
+        const terrainGeometry = new THREE.PlaneGeometry(100, 100, 32, 32);
+        const terrainMaterial = new THREE.MeshPhongMaterial({ color: 0x333333, wireframe: false });
+        const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+        terrain.rotation.x = -Math.PI / 2;
+        terrain.receiveShadow = true;
+        for (let i = 0; i < terrainGeometry.vertices.length; i++) {
+            terrainGeometry.vertices[i].z = Math.random() * 2;
+        }
+        terrainGeometry.verticesNeedUpdate = true;
+        terrainGeometry.computeVertexNormals();
+        scene.add(terrain);
+        const terrainBody = new CANNON.Body({
+            mass: 0,
+            shape: new CANNON.Plane()
+        });
+        terrainBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        world.addBody(terrainBody);
+
+        // Game state
+        const gameState = {
+            player: {
+                speed: 0.2,
+                health: 100,
+                energy: 100,
+                dashCooldown: 0,
+                bombCooldown: 0,
+                jumpCooldown: 0
+            },
+            bullets: [],
+            enemies: [],
+            walls: [],
+            effects: [],
+            score: 0,
+            weatherActive: false
+        };
+
+        // Input handling
+        const keys = {};
+        document.addEventListener('keydown', (e) => keys[e.key] = true);
+        document.addEventListener('keyup', (e) => keys[e.key] = false);
+
+        let mouseX = 0;
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+        });
+
+        document.addEventListener('click', () => {
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            const bullet = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2, 32, 32),
+                new THREE.MeshPhongMaterial({ color: 0x0000ff })
+            );
+            bullet.position.copy(player.position);
+            bullet.castShadow = true;
+            scene.add(bullet);
+            const bulletBody = new CANNON.Body({
+                mass: 0.1,
+                shape: new CANNON.Sphere(0.2)
+            });
+            bulletBody.position.copy(playerBody.position);
+            bulletBody.velocity.copy(direction.multiplyScalar(20));
+            world.addBody(bulletBody);
+            gameState.bullets.push({ mesh: bullet, body: bulletBody, explosive: true });
+        });
+
+        // Environment setup
+        function initEnvironment() {
+            for (let i = 0; i < 10; i++) {
+                const wall = new THREE.Mesh(
+                    new THREE.BoxGeometry(5, 1, 0.5),
+                    new THREE.MeshPhongMaterial({ color: 0x888888 })
+                );
+                wall.position.set(
+                    (Math.random() - 0.5) * 50,
+                    0.5,
+                    (Math.random() - 0.5) * 50
+                );
+                wall.castShadow = true;
+                wall.receiveShadow = true;
+                scene.add(wall);
+                const wallBody = new CANNON.Body({
+                    mass: 0,
+                    shape: new CANNON.Box(new CANNON.Vec3(2.5, 0.5, 0.25))
+                });
+                wallBody.position.copy(wall.position);
+                wallBody.health = 100;
+                world.addBody(wallBody);
+                gameState.walls.push({ mesh: wall, body: wallBody });
+            }
+            spawnEnemies();
+        }
+
+        function spawnEnemies() {
+            if (gameState.enemies.length < 5) {
+                const enemy = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.75, 32, 32),
+                    new THREE.MeshPhongMaterial({ color: 0xff8800 })
+                );
+                enemy.position.set(
+                    (Math.random() - 0.5) * 50,
+                    0.75,
+                    (Math.random() - 0.5) * 50
+                );
+                enemy.castShadow = true;
+                scene.add(enemy);
+                const enemyBody = new CANNON.Body({
+                    mass: 1,
+                    shape: new CANNON.Sphere(0.75)
+                });
+                enemyBody.position.copy(enemy.position);
+                world.addBody(enemyBody);
+                gameState.enemies.push({ mesh: enemy, body: enemyBody });
+            }
+        }
+
+        // Weather system
+        function toggleWeather() {
+            gameState.weatherActive = !gameState.weatherActive;
+            document.getElementById('weather').style.background = 
+                gameState.weatherActive ? 'rgba(194, 138, 61, 0.3)' : 'rgba(194, 138, 61, 0)';
+            setTimeout(toggleWeather, Math.random() * 10000 + 5000);
+        }
+        setTimeout(toggleWeather, 5000);
+
+        // Particle system for effects
+        const particleGeometry = new THREE.BufferGeometry();
+        const particleMaterial = new THREE.PointsMaterial({ color: 0xff0000, size: 0.1 });
+        const particles = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particles);
+
+        // Game loop
+        function update() {
+            world.step(1 / 60);
+
+            // Player movement
+            let moveSpeed = gameState.player.speed;
+            if (keys['Shift'] && gameState.player.dashCooldown <= 0 && gameState.player.energy >= 20) {
+                moveSpeed *= 5;
+                gameState.player.energy -= 20;
+                gameState.player.dashCooldown = 60;
+            }
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            direction.y = 0;
+            direction.normalize();
+            const sideDirection = new THREE.Vector3(-direction.z, 0, direction.x);
+            if (keys['w']) playerBody.velocity.add(direction.multiplyScalar(moveSpeed));
+            if (keys['s']) playerBody.velocity.sub(direction.multiplyScalar(moveSpeed));
+            if (keys['a']) playerBody.velocity.add(sideDirection.multiplyScalar(moveSpeed));
+            if (keys['d']) playerBody.velocity.sub(sideDirection.multiplyScalar(moveSpeed));
+            if (keys[' '] && gameState.player.jumpCooldown <= 0 && playerBody.position.y < 1) {
+                playerBody.velocity.y = 5; // Jump
+                gameState.player.jumpCooldown = 30;
+            } else if (keys[' '] && gameState.player.bombCooldown <= 0 && gameState.player.energy >= 50) {
+                gameState.effects.push({
+                    position: playerBody.position.clone(),
+                    radius: 0,
+                    maxRadius: 5,
+                    type: 'gravity'
+                });
+                gameState.player.energy -= 50;
+                gameState.player.bombCooldown = 300;
+            }
+
+            // Cooldowns and energy
+            gameState.player.dashCooldown = Math.max(0, gameState.player.dashCooldown - 1);
+            gameState.player.bombCooldown = Math.max(0, gameState.player.bombCooldown - 1);
+            gameState.player.jumpCooldown = Math.max(0, gameState.player.jumpCooldown - 1);
+            gameState.player.energy = Math.min(100, gameState.player.energy + 0.1);
+
+            // Sync player
+            player.position.copy(playerBody.position);
+            player.quaternion.copy(playerBody.quaternion);
+            player.lookAt(player.position.clone().add(direction));
+
+            // Update bullets
+            gameState.bullets.forEach((bullet, index) => {
+                bullet.mesh.position.copy(bullet.body.position);
+                gameState.walls.forEach((wall, wIndex) => {
+                    if (bullet.mesh.position.distanceTo(wall.mesh.position) < 2.5) {
+                        wall.body.health -= bullet.explosive ? 50 : 25;
+                        if (wall.body.health <= 0) {
+                            scene.remove(wall.mesh);
+                            world.remove(wall.body);
+                            gameState.walls.splice(wIndex, 1);
+                        }
+                        if (bullet.explosive) {
+                            gameState.effects.push({
+                                position: bullet.body.position.clone(),
+                                radius: 0,
+                                maxRadius: 1.5,
+                                type: 'explosion'
+                            });
+                        }
+                        scene.remove(bullet.mesh);
+                        world.remove(bullet.body);
+                        gameState.bullets.splice(index, 1);
+                    }
+                });
+
+                gameState.enemies.forEach((enemy, eIndex) => {
+                    if (bullet.mesh.position.distanceTo(enemy.mesh.position) < 1) {
+                        scene.remove(enemy.mesh);
+                        world.remove(enemy.body);
+                        gameState.enemies.splice(eIndex, 1);
+                        if (bullet.explosive) {
+                            gameState.effects.push({
+                                position: bullet.body.position.clone(),
+                                radius: 0,
+                                maxRadius: 1.5,
+                                type: 'explosion'
+                            });
+                        }
+                        scene.remove(bullet.mesh);
+                        world.remove(bullet.body);
+                        gameState.bullets.splice(index, 1);
+                        gameState.score += 10;
+                        spawnEnemies();
+                    }
+                });
+            });
+
+            // Update effects
+            const particlePositions = [];
+            gameState.effects.forEach((effect, index) => {
+                effect.radius += 0.1;
+                if (effect.type === 'gravity') {
+                    gameState.enemies.forEach(enemy => {
+                        const dist = enemy.body.position.distanceTo(effect.position);
+                        if (dist < effect.radius) {
+                            const direction = effect.position.clone().sub(enemy.body.position).normalize();
+                            enemy.body.velocity.add(direction.scale(0.5));
+                        }
+                    });
+                    for (let i = 0; i < 10; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const radius = Math.random() * effect.radius;
+                        particlePositions.push(
+                            effect.position.x + Math.cos(angle) * radius,
+                            effect.position.y + Math.random() * effect.radius,
+                            effect.position.z + Math.sin(angle) * radius
+                        );
+                    }
+                } else if (effect.type === 'explosion') {
+                    for (let i = 0; i < 5; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const radius = Math.random() * effect.radius;
+                        particlePositions.push(
+                            effect.position.x + Math.cos(angle) * radius,
+                            effect.position.y + Math.random() * effect.radius,
+                            effect.position.z + Math.sin(angle) * radius
+                        );
+                    }
+                }
+                if (effect.radius >= effect.maxRadius) gameState.effects.splice(index, 1);
+            });
+            particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(particlePositions, 3));
+            particleGeometry.attributes.position.needsUpdate = true;
+
+            // Update enemies
+            gameState.enemies.forEach(enemy => {
+                enemy.mesh.position.copy(enemy.body.position);
+                enemy.mesh.quaternion.copy(enemy.body.quaternion);
+                const directionToPlayer = playerBody.position.clone().sub(enemy.body.position).normalize();
+                enemy.body.velocity.add(directionToPlayer.scale(gameState.weatherActive ? 0.05 : 0.1));
+                if (enemy.mesh.position.distanceTo(player.position) < 1.5) {
+                    gameState.player.health -= 1;
+                }
+            });
+
+            // Camera follow
+            camera.position.set(
+                player.position.x,
+                player.position.y + 10,
+                player.position.z + 10
+            );
+            camera.lookAt(player.position);
+
+            // UI update
+            document.getElementById('health').textContent = Math.max(0, gameState.player.health);
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('energy').textContent = Math.floor(gameState.player.energy);
+
+            if (gameState.player.health <= 0) {
+                alert(`Game Over! Score: ${gameState.score}`);
+                resetGame();
+            }
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+
+        function resetGame() {
+            gameState.player.health = 100;
+            gameState.player.energy = 100;
+            gameState.bullets.forEach(b => { scene.remove(b.mesh); world.remove(b.body); });
+            gameState.enemies.forEach(e => { scene.remove(e.mesh); world.remove(e.body); });
+            gameState.walls.forEach(w => { scene.remove(w.mesh); world.remove(w.body); });
+            gameState.bullets = [];
+            gameState.enemies = [];
+            gameState.walls = [];
+            gameState.effects = [];
+            gameState.score = 0;
+            playerBody.position.set(0, 0.5, 0);
+            playerBody.velocity.set(0, 0, 0);
+            initEnvironment();
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        initEnvironment();
+        gameLoop();
+    </script>
+</body>
+</html>

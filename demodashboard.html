@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goals Progress Dashboard</title>
+    <style>
+        :root {
+            --completed: #4CAF50;
+            --on-track: #FFC107;
+            --at-risk: #F44336;
+            --background: #f5f5f5;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background);
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .goal-filter {
+            margin-bottom: 20px;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .goals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .goal-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .goal-status {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .completed { background-color: var(--completed); }
+        .on-track { background-color: var(--on-track); }
+        .at-risk { background-color: var(--at-risk); }
+
+        .progress-bar {
+            height: 10px;
+            background-color: #eee;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .goal-metrics {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h1>Company Goals Tracker</h1>
+        
+        <div class="goal-filter">
+            <button class="filter-btn" onclick="filterGoals('all')">All</button>
+            <button class="filter-btn" onclick="filterGoals('completed')">Completed</button>
+            <button class="filter-btn" onclick="filterGoals('on-track')">On Track</button>
+            <button class="filter-btn" onclick="filterGoals('at-risk')">At Risk</button>
+        </div>
+
+        <div class="goals-grid" id="goalsContainer">
+            <!-- Goals will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <script>
+        // Sample goals data (Replace with HubSpot CMS data)
+        const goals = [
+            {
+                title: "Increase Website Traffic",
+                progress: 75,
+                status: "on-track",
+                description: "Achieve 100k monthly visitors",
+                dueDate: "2024-12-31",
+                owner: "Marketing Team"
+            },
+            {
+                title: "Product Launch",
+                progress: 30,
+                status: "at-risk",
+                description: "Launch new product line",
+                dueDate: "2024-09-30",
+                owner: "Product Team"
+            },
+            {
+                title: "Customer Satisfaction",
+                progress: 100,
+                status: "completed",
+                description: "Reach 95% satisfaction rate",
+                dueDate: "2024-06-30",
+                owner: "Support Team"
+            }
+        ];
+
+        // Render goals
+        function renderGoals(filter = 'all') {
+            const container = document.getElementById('goalsContainer');
+            container.innerHTML = '';
+
+            const filteredGoals = filter === 'all' 
+                ? goals 
+                : goals.filter(goal => goal.status === filter);
+
+            filteredGoals.forEach(goal => {
+                const goalCard = document.createElement('div');
+                goalCard.className = 'goal-card';
+                goalCard.innerHTML = `
+                    <div class="goal-status ${goal.status}"></div>
+                    <h3>${goal.title}</h3>
+                    <p>${goal.description}</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${goal.status}" 
+                             style="width: ${goal.progress}%"></div>
+                    </div>
+                    <div class="goal-metrics">
+                        <span>${goal.progress}% Complete</span>
+                        <span>Due: ${goal.dueDate}</span>
+                    </div>
+                    <div class="goal-metrics">
+                        <span>Owner: ${goal.owner}</span>
+                    </div>
+                `;
+                container.appendChild(goalCard);
+            });
+        }
+
+        // Filter goals
+        function filterGoals(status) {
+            renderGoals(status);
+        }
+
+        // Initial render
+        renderGoals();
+
+        // HubSpot Integration
+        document.addEventListener('DOMContentLoaded', function() {
+            // Replace with HubSpot CMS data fetching logic
+            /*
+            fetch('/_hcms/api/YOUR_ENDPOINT')
+                .then(response => response.json())
+                .then(data => {
+                    goals = data;
+                    renderGoals();
+                });
+            */
+        });
+    </script>
+</body>
+</html>

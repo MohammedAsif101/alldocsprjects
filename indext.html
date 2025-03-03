@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Notes App</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Include docx.js library for Word export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.19.0/docxtemplater.js"></script>
+    <!-- Include xlsx.js library for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar for Notes List -->
+        <div class="sidebar">
+            <h2>My Notes</h2>
+            <input type="text" id="searchNotes" placeholder="Search Notes...">
+            <ul id="notesList"></ul>
+            <button id="clearNotes">Clear All Notes</button>
+            <button id="toggleDarkMode">Dark Mode</button>
+            <button id="exportWord">Export to Word</button>
+            <button id="exportExcel">Export to Excel</button>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="note-area">
+            <button id="newNote">+ New Note</button>
+            <input type="text" id="noteTitle" placeholder="Enter Title..." />
+            <textarea id="noteContent" placeholder="Write your note here..."></textarea>
+            <button id="saveNote">Save Note</button>
+            <button id="deleteNote" style="display: none;">Delete Note</button>
+        </div>
+    </div>
+    <style>
+        /* Your existing styles */
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            background-color: #f4f4f4;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* Dark Mode */
+        .dark-mode {
+            background-color: #222;
+            color: white;
+        }
+
+        /* Container (Sidebar + Main Content) */
+        .container {
+            display: flex;
+            width: 100%;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            overflow-y: auto;
+            transition: background 0.3s;
+        }
+
+        .dark-mode .sidebar {
+            background: #1e272e;
+        }
+
+        .sidebar h2 {
+            text-align: center;
+        }
+
+        #searchNotes {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        #notesList {
+            list-style: none;
+            padding: 0;
+        }
+
+        #notesList li {
+            padding: 10px;
+            border-bottom: 1px solid gray;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #notesList li:hover {
+            background: #34495e;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: none;
+            cursor: pointer;
+            background: #e74c3c;
+            color: white;
+        }
+
+        button:hover {
+            background: #c0392b;
+        }
+
+        /* Note Area Styling */
+        .note-area {
+            flex: 1;
+            padding: 20px;
+        }
+
+        #newNote {
+            background: #3498db;
+        }
+
+        #newNote:hover {
+            background: #2980b9;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        textarea {
+            height: 300px;
+        }
+
+        /* Save Button */
+        #saveNote {
+            background: #27ae60;
+        }
+
+        #saveNote:hover {
+            background: #229954;
+        }
+
+        /* Dark Mode for Inputs */
+        .dark-mode input, 
+        .dark-mode textarea {
+            background: #333;
+            color: white;
+            border: 1px solid white;
+        }
+    </style>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const noteTitle = document.getElementById("noteTitle");
+            const noteContent = document.getElementById("noteContent");
+            const saveNoteBtn = document.getElementById("saveNote");
+            const deleteNoteBtn = document.getElementById("deleteNote");
+            const clearNotesBtn = document.getElementById("clearNotes");
+            const notesList = document.getElementById("notesList");
+            const newNoteBtn = document.getElementById("newNote");
+            const searchNotes = document.getElementById("searchNotes");
+            const toggleDarkMode = document.getElementById("toggleDarkMode");
+            const exportWordBtn = document.getElementById("exportWord");
+            const exportExcelBtn = document.getElementById("exportExcel");
+
+            let notes = JSON.parse(localStorage.getItem("notes")) || [];
+            let selectedNoteIndex = null;
+
+            function renderNotes() {
+                notesList.innerHTML = "";
+                notes.forEach((note, index) => {
+                    const li = document.createElement("li");
+                    li.textContent = note.title;
+                    li.onclick = () => loadNote(index);
+                    notesList.appendChild(li);
+                });
+            }
+
+            function saveNote() {
+                const title = noteTitle.value.trim();
+                const content = noteContent.value.trim();
+
+                if (!title || !content) {
+                    alert("Please fill in both title and content.");
+                    return;
+                }
+
+                if (selectedNoteIndex === null) {
+                    notes.push({ title, content });
+                } else {
+                    notes[selectedNoteIndex] = { title, content };
+                }
+
+                localStorage.setItem("notes", JSON.stringify(notes));
+                renderNotes();
+                resetForm();
+            }
+
+            function loadNote(index) {
+                selectedNoteIndex = index;
+                noteTitle.value = notes[index].title;
+                noteContent.value = notes[index].content;
+                deleteNoteBtn.style.display = "inline-block";
+            }
+
+            function deleteNote() {
+                if (selectedNoteIndex !== null) {
+                    notes.splice(selectedNoteIndex, 1);
+                    localStorage.setItem("notes", JSON.stringify(notes));
+                    renderNotes();
+                    resetForm();
+                }
+            }
+
+            function clearAllNotes() {
+                if (confirm("Are you sure you want to delete all notes?")) {
+                    localStorage.removeItem("notes");
+                    notes = [];
+                    renderNotes();
+                    resetForm();
+                }
+            }
+
+            function createNewNote() {
+                resetForm();
+            }
+
+            function resetForm() {
+                noteTitle.value = "";
+                noteContent.value = "";
+                selectedNoteIndex = null;
+                deleteNoteBtn.style.display = "none";
+            }
+
+            function filterNotes() {
+                const searchText = searchNotes.value.toLowerCase();
+                const filteredNotes = notes.filter(note => note.title.toLowerCase().includes(searchText));
+                notesList.innerHTML = "";
+                filteredNotes.forEach((note, index) => {
+                    const li = document.createElement("li");
+                    li.textContent = note.title;
+                    li.onclick = () => loadNote(index);
+                    notesList.appendChild(li);
+                });
+            }
+
+            function toggleDarkModeFunction() {
+                document.body.classList.toggle("dark-mode");
+                localStorage.setItem("darkMode", document.body.classList.contains("dark-mode"));
+            }
+
+            function exportToWord() {
+                const selectedNote = notes[selectedNoteIndex];
+                const doc = new Document();
+                doc.addSection({
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [new TextRun(selectedNote.title)],
+                        }),
+                        new Paragraph({
+                            children: [new TextRun(selectedNote.content)],
+                        }),
+                    ],
+                });
+
+                Packer.toBlob(doc).then(blob => {
+                    saveAs(blob, "note.docx");
+                });
+            }
+
+            function exportToExcel() {
+                const selectedNote = notes[selectedNoteIndex];
+                const worksheet = XLSX.utils.aoa_to_sheet([
+                    ["Title", selectedNote.title],
+                    ["Content", selectedNote.content]
+                ]);
+
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Note");
+                XLSX.writeFile(workbook, "note.xlsx");
+            }
+
+            if (localStorage.getItem("darkMode") === "true") {
+                document.body.classList.add("dark-mode");
+            }
+
+            saveNoteBtn.addEventListener("click", saveNote);
+            deleteNoteBtn.addEventListener("click", deleteNote);
+            clearNotesBtn.addEventListener("click", clearAllNotes);
+            newNoteBtn.addEventListener("click", createNewNote);
+            searchNotes.addEventListener("input", filterNotes);
+            toggleDarkMode.addEventListener("click", toggleDarkModeFunction);
+            exportWordBtn.addEventListener("click", exportToWord);
+            exportExcelBtn.addEventListener("click", exportToExcel);
+
+            renderNotes();
+        });
+    </script>
+</body>
+</html>

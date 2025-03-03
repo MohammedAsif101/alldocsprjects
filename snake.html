@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(45deg, #ff0000, #ff7300, #ffeb00, #47ff00, #00ffee, #0047ff, #7a00ff, #ff00c8);
+            background-size: 400% 400%;
+            animation: glowingBackground 10s infinite alternate;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        @keyframes glowingBackground {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+        canvas {
+            background-color: black;
+            border: 2px solid white;
+        }
+        .scoreboard {
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+        .game-over {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+        }
+        .game-over button, .controls button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            background-color: #ff4757;
+            color: white;
+            border-radius: 5px;
+        }
+        .controls {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="scoreboard">Score: <span id="score">0</span> | High Score: <span id="high-score">0</span></div>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div class="controls">
+        <button onclick="increaseSpeed()">Increase Speed</button>
+        <button onclick="decreaseSpeed()">Decrease Speed</button>
+        <button onclick="togglePause()">Start/Stop</button>
+    </div>
+    <div class="game-over" id="gameOverScreen">
+        <h2>Game Over</h2>
+        <button onclick="restartGame()">Restart</button>
+    </div>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const gridSize = 20;
+        let snake = [{ x: 200, y: 200 }];
+        let direction = "RIGHT";
+        let food = { x: getRandomPosition(), y: getRandomPosition() };
+        let score = 0;
+        let highScore = localStorage.getItem("highScore") || 0;
+        document.getElementById("high-score").textContent = highScore;
+        let gameRunning = true;
+        let speed = 100;
+        let gameInterval;
+        
+        function getRandomPosition() {
+            return Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize;
+        }
+        
+        function drawSnake() {
+            ctx.fillStyle = "yellow";
+            snake.forEach(segment => {
+                ctx.fillRect(segment.x, segment.y, gridSize, gridSize);
+            });
+        }
+        
+        function drawFood() {
+            ctx.fillStyle = "red";
+            ctx.fillRect(food.x, food.y, gridSize, gridSize);
+        }
+        
+        function updateGame() {
+            moveSnake();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawFood();
+            drawSnake();
+        }
+        
+        function moveSnake() {
+            let head = { ...snake[0] };
+            if (direction === "UP") head.y -= gridSize;
+            if (direction === "DOWN") head.y += gridSize;
+            if (direction === "LEFT") head.x -= gridSize;
+            if (direction === "RIGHT") head.x += gridSize;
+            
+            snake.unshift(head);
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                document.getElementById("score").textContent = score;
+                food = { x: getRandomPosition(), y: getRandomPosition() };
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem("highScore", highScore);
+                    document.getElementById("high-score").textContent = highScore;
+                }
+            } else {
+                snake.pop();
+            }
+            
+            if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height || checkCollision(head)) {
+                gameOver();
+            }
+        }
+        
+        function checkCollision(head) {
+            return snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y);
+        }
+        
+        function gameOver() {
+            clearInterval(gameInterval);
+            document.getElementById("gameOverScreen").style.display = "block";
+        }
+        
+        function restartGame() {
+            snake = [{ x: 200, y: 200 }];
+            direction = "RIGHT";
+            food = { x: getRandomPosition(), y: getRandomPosition() };
+            score = 0;
+            document.getElementById("score").textContent = score;
+            document.getElementById("gameOverScreen").style.display = "none";
+            startGame();
+        }
+        
+        function startGame() {
+            clearInterval(gameInterval);
+            gameInterval = setInterval(updateGame, speed);
+        }
+        
+        function increaseSpeed() {
+            if (speed > 50) speed -= 10;
+            startGame();
+        }
+        
+        function decreaseSpeed() {
+            if (speed < 300) speed += 10;
+            startGame();
+        }
+        
+        function togglePause() {
+            if (gameInterval) {
+                clearInterval(gameInterval);
+                gameInterval = null;
+            } else {
+                startGame();
+            }
+        }
+        
+        document.addEventListener("keydown", event => {
+            const key = event.key;
+            if ((key === "ArrowUp" || key === "w") && direction !== "DOWN") direction = "UP";
+            if ((key === "ArrowDown" || key === "s") && direction !== "UP") direction = "DOWN";
+            if ((key === "ArrowLeft" || key === "a") && direction !== "RIGHT") direction = "LEFT";
+            if ((key === "ArrowRight" || key === "d") && direction !== "LEFT") direction = "RIGHT";
+        });
+        
+        startGame();
+    </script>
+</body>
+</html>

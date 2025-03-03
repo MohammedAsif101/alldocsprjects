@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Note App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f4;
+        }
+        .navbar {
+            width: 100%;
+            background-color: #333;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+        }
+        .navbar .links a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+        }
+        .container {
+            width: 80%;
+            max-width: 600px;
+            background: white;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .note {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .note input, .note textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .note button {
+            padding: 10px;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .note-list {
+            margin-top: 20px;
+        }
+        .note-item {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .note-item button {
+            background-color: #dc3545;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .footer {
+            width: 100%;
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            position: fixed;
+            bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="links">
+            <a href="#">Home</a>
+            <a href="#">Contact Us</a>
+        </div>
+        <span id="clock"></span>
+    </div>
+    <div class="container">
+        <h2>Text Note App</h2>
+        <div class="note">
+            <input type="text" id="title" placeholder="Note Title">
+            <textarea id="content" placeholder="Write your note..."></textarea>
+            <input type="datetime-local" id="reminder">
+            <button onclick="addNote()">Add Note</button>
+        </div>
+        <div class="note-list" id="noteList"></div>
+    </div>
+    <div class="footer">
+        &copy; 2025 Text Note App. All Rights Reserved.
+    </div>
+    <script>
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString();
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+        
+        function loadNotes() {
+            const notes = JSON.parse(localStorage.getItem('notes')) || [];
+            const noteList = document.getElementById('noteList');
+            noteList.innerHTML = '';
+            notes.forEach((note, index) => {
+                const noteItem = document.createElement('div');
+                noteItem.className = 'note-item';
+                noteItem.innerHTML = `
+                    <div>
+                        <strong>${note.title}</strong><br>
+                        ${note.content}<br>
+                        <small>Reminder: ${note.reminder ? new Date(note.reminder).toLocaleString() : 'None'}</small>
+                    </div>
+                    <button onclick="deleteNote(${index})">Delete</button>
+                `;
+                noteList.appendChild(noteItem);
+            });
+        }
+
+        function addNote() {
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('content').value;
+            const reminder = document.getElementById('reminder').value;
+            if (title.trim() === '' || content.trim() === '') {
+                alert('Title and content are required!');
+                return;
+            }
+            const notes = JSON.parse(localStorage.getItem('notes')) || [];
+            notes.push({ title, content, reminder });
+            localStorage.setItem('notes', JSON.stringify(notes));
+            document.getElementById('title').value = '';
+            document.getElementById('content').value = '';
+            document.getElementById('reminder').value = '';
+            loadNotes();
+            checkReminders();
+        }
+
+        function deleteNote(index) {
+            const notes = JSON.parse(localStorage.getItem('notes')) || [];
+            notes.splice(index, 1);
+            localStorage.setItem('notes', JSON.stringify(notes));
+            loadNotes();
+        }
+
+        function checkReminders() {
+            const notes = JSON.parse(localStorage.getItem('notes')) || [];
+            const now = new Date().getTime();
+            notes.forEach((note, index) => {
+                if (note.reminder) {
+                    const reminderTime = new Date(note.reminder).getTime();
+                    if (reminderTime <= now) {
+                        alert(`Reminder: ${note.title}\n${note.content}`);
+                        notes[index].reminder = null;
+                        localStorage.setItem('notes', JSON.stringify(notes));
+                        loadNotes();
+                    }
+                }
+            });
+        }
+        setInterval(checkReminders, 60000);
+        loadNotes();
+    </script>
+</body>
+</html>

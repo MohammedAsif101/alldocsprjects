@@ -1,0 +1,53 @@
+Create a modern, responsive Data Store Management App using React with Tailwind CSS for styling. The app should allow users to manage data entries, view analytics, and handle CRUD (Create, Read, Update, Delete) operations efficiently add the key Features like User Authentication (Login, Signup, Logout),Dashboard with Analytics (Graphs, Data Insights)
+,CRUD Operations (Create, Read, Update, Delete entries)
+,Search & Filter functionality
+,Dark Mode Toggle
+,Role-based Access Control (Admin, Editor, Viewer)
+,Optimized for Mobile & Desktop and UI AND UX Guidelines Clean, minimalistic dashboard
+Intuitive navigation (Sidebar, Navbar)
+Smooth transitions & animations (Framer Motion)
+Accessible & keyboard-friendly controls
+
+==========================================================
+
+Design a productivity app that combines smart note-taking with a calendar reminder system, capable of sending email notifications. The app should have the following features,User Accounts: Secure login with email authentication.
+
+Smart Note-Taking Users can create, edit, and organize notes with rich text formatting, checklists, and attachments ,AI-powered summaries and keyword tagging for easy searchability,
+Calendar Integration ,Users can set reminders for events, deadlines, and tasks,Sync with Google Calendar, Outlook, and Apple Calendar
+Email Notifications Users can schedule reminders to be sent to their email.
+Option to set one-time, daily, weekly, or custom recurring reminders.
+Smart AI suggestions for optimal reminder times based on task urgency.
+Dark & Light Mode: UI customization for user preference.
+
+==============================================================
+
+Design a web-based application that enables users to record videos and engage in AI-powered conversations. The system should support:
+
+Video Recording
+
+Start, pause, resume, and stop recording.
+Save recorded videos in various formats (MP4, WebM).
+Option to download or store videos in a database/cloud.
+Playback feature for reviewing recordings.
+AI-Powered Chat & Response System
+
+Users can interact via text or voice input.
+AI should provide real-time, intelligent responses based on context.
+Support for different AI models (GPT-based, custom NLP models).
+Text-to-Speech (TTS) for AI responses and Speech-to-Text (STT) for user input.
+Allow AI responses in multiple languages.
+Customization & User Control
+
+Users can configure AI response tone (formal, casual, technical, etc.).
+Option to summarize long responses.
+Dark mode and UI customization for a better experience.
+Additional Enhancements
+
+Chat and video logs for review.
+Real-time transcription of recorded videos.
+Drag-and-drop video file uploads for AI analysis.
+Option to integrate with third-party APIs for extended functionalities.
+The goal is to create an intuitive and dynamic AI-powered video recording and chat platform that enhances user interaction through intelligent automation
+
+explain the step-by-step process and give us necessary code in html, css, javascript
+

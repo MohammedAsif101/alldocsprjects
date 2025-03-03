@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .pdf-page { border: 1px solid black; cursor: text; display: block; margin: auto; margin-bottom: 10px; position: relative; }
+        .controls { margin: 10px; }
+        canvas { image-rendering: crisp-edges; image-rendering: -moz-crisp-edges; image-rendering: -webkit-optimize-contrast; }
+    </style>
+</head>
+<body>
+    <h1>PDF Editor</h1>
+    <input type="file" id="pdfUpload" accept="application/pdf">
+    <div class="controls">
+        <button onclick="savePDF()">Save & Download</button>
+    </div>
+    <div id="pdfContainer"></div>
+    
+    <script>
+        let pdfDoc = null;
+        let pdfContainer = document.getElementById("pdfContainer");
+        let textElements = [];
+        
+        document.getElementById("pdfUpload").addEventListener("change", function(event) {
+            let file = event.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            
+            reader.onload = function() {
+                let typedarray = new Uint8Array(reader.result);
+                pdfjsLib.getDocument({data: typedarray}).promise.then(function(pdf) {
+                    pdfDoc = pdf;
+                    renderAllPages();
+                }).catch(error => console.error("Error loading PDF:", error));
+            };
+            reader.readAsArrayBuffer(file);
+        });
+        
+        function renderAllPages() {
+            pdfContainer.innerHTML = "";
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                let canvas = document.createElement("canvas");
+                canvas.classList.add("pdf-page");
+                pdfContainer.appendChild(canvas);
+                renderPage(i, canvas);
+            }
+        }
+        
+        function renderPage(pageNumber, canvas) {
+            pdfDoc.getPage(pageNumber).then(function(page) {
+                let viewport = page.getViewport({ scale: 2.0 });
+                let ctx = canvas.getContext("2d");
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                let renderContext = { canvasContext: ctx, viewport: viewport };
+                page.render(renderContext).promise.then(() => {
+                    extractTextFromPage(page, canvas, pageNumber);
+                });
+            }).catch(error => console.error("Error rendering page:", error));
+        }
+        
+        async function extractTextFromPage(page, canvas, pageNumber) {
+            let textContent = await page.getTextContent();
+            let ctx = canvas.getContext("2d");
+            ctx.font = "20px Arial";
+            ctx.fillStyle = "black";
+            textContent.items.forEach(item => {
+                let x = item.transform[4];
+                let y = canvas.height - item.transform[5];
+                let text = item.str;
+                ctx.fillText(text, x, y);
+                textElements.push({ text, x, y, pageNumber, canvas });
+            });
+            enableTextEditing(canvas);
+        }
+        
+        function enableTextEditing(canvas) {
+            canvas.addEventListener("click", function(event) {
+                let x = event.offsetX;
+                let y = event.offsetY;
+                let clickedText = textElements.find(t => t.canvas === canvas && Math.abs(t.x - x) < 50 && Math.abs(t.y - y) < 20);
+                
+                if (clickedText) {
+                    let newText = prompt("Edit text:", clickedText.text);
+                    if (newText !== null) {
+                        let ctx = canvas.getContext("2d");
+                        ctx.fillStyle = "white";
+                        ctx.fillRect(clickedText.x, clickedText.y - 15, ctx.measureText(clickedText.text).width, 20);
+                        ctx.fillStyle = "black";
+                        ctx.fillText(newText, clickedText.x, clickedText.y);
+                        clickedText.text = newText;
+                    }
+                }
+            });
+        }
+        
+        async function savePDF() {
+            const pdfBytes = await fetch(document.getElementById("pdfUpload").files[0]).then(res => res.arrayBuffer());
+            const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+            const pages = pdfDoc.getPages();
+            
+            textElements.forEach(({ text, x, y, pageNumber }) => {
+                let page = pages[pageNumber - 1];
+                page.drawText(text, { x, y: page.getHeight() - y, size: 20, color: PDFLib.rgb(0, 0, 0) });
+            });
+            
+            const pdfDataUri = await pdfDoc.saveAsBase64({ dataUri: true });
+            const a = document.createElement("a");
+            a.href = pdfDataUri;
+            a.download = "edited.pdf";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>

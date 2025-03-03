@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to Audio Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Text to Audio & File Upload</h1>
+        
+        <textarea id="text-input" rows="4" cols="50" placeholder="Enter text to convert..."></textarea>
+        <br>
+        <button onclick="convertTextToSpeechFromInput()">Convert to Audio</button>
+        <br><br>
+        
+        <input type="file" id="file-upload" accept=".txt, .pdf, .xml, .html">
+        <br>
+        <button onclick="processFile()">Process File</button>
+    </div>
+
+    <script>
+        function convertTextToSpeech(text) {
+            if (!text.trim()) {
+                alert("No text available for conversion.");
+                return;
+            }
+            let speech = new SpeechSynthesisUtterance(text);
+            speech.lang = 'en-US'; // Ensure language is set
+            speech.rate = 1; // Normal speech rate
+            window.speechSynthesis.speak(speech);
+        }
+
+        function convertTextToSpeechFromInput() {
+            let text = document.getElementById('text-input').value;
+            convertTextToSpeech(text);
+        }
+
+        function processFile() {
+            let fileInput = document.getElementById('file-upload');
+            if (fileInput.files.length > 0) {
+                let file = fileInput.files[0];
+                let reader = new FileReader();
+                reader.onload = function(event) {
+                    let text = event.target.result;
+                    convertTextToSpeech(text);
+                };
+                reader.readAsText(file, 'UTF-8'); // Ensures proper encoding
+            } else {
+                alert("Please upload a valid file.");
+            }
+        }
+    </script>
+</body>
+</html>
